@@ -1,10 +1,27 @@
 {
   "files.exclude": {
-    "**/.git": false,
+    "**/.git": true,
     "**/.svn": true,
     "**/.hg": true,
     "**/.DS_Store": true,
     "**/Thumbs.db": true
   },
-  "hide-files.files": []
+  "hide-files.files": [],
+  "sqltools.connections": [
+    {
+      "mysqlOptions": {
+        "authProtocol": "default",
+        "enableSsl": "Disabled"
+      },
+      "ssh": "Disabled",
+      "previewLimit": 50,
+      "server": "localhost",
+      "port": 3306,
+      "driver": "MySQL",
+      "name": "Ballchasersapi",
+      "database": "ballchasing",
+      "username": "root",
+      "password": "Chasingballers"
+    }
+  ]
 }
