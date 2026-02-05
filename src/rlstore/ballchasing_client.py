@@ -38,3 +38,6 @@ class BallChasingClient:
 
     def ping(self):
         return self._request("GET")
+
+    def get_replays(self):
+        pass
