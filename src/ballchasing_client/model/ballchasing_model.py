@@ -169,9 +169,11 @@ class ReplayQuery:
     """Filter replays by the date they were played."""
     replay_date_before: Optional[datetime] = None
     """Filter replays by the date they were played."""
-    count: Optional[int] = None
-    """The number of replays to return."""
+    count: Optional[int] = 50
+    """The number of replays to return per page. default is 50, max is 200"""
     sort_by: Optional[SortBy] = None
     """The field to sort by. default is upload-date."""
     sort_dir: Optional[SortDir] = None
     """The direction to sort by. default is desc."""
+    limit: Optional[int] = 50
+    """The number of replays to return. The default is 50. If None is passed, all replays will be returned (may be insanely slow)."""

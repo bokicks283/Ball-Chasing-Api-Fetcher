@@ -4,6 +4,7 @@ import os
 from dotenv import load_dotenv
 
 from ballchasing_client.ballchasing_client import BallChasingClient
+from ballchasing_client.model.ballchasing_model import ReplayQuery
 
 
 def main():
@@ -11,17 +12,17 @@ def main():
     token = os.environ.get("BC_API_TOKEN")
     if not token:
         raise Exception("BC_API_TOKEN not found in environment variables.")
-    # Initialize the BallChasingClient
-    client = BallChasingClient(token)
-    print("Pinging BallChasing API")
-    ping_results = []
-    print(json.dumps(client.ping(), indent=4))
 
-    print("\b\b ", end="", flush=True)
-    print("\rAttempting to trigger rate limit done.", end="", flush=True)
-    print()
-    for r in ping_results:
-        print(json.dumps(r, indent=4))
+    with BallChasingClient(token) as client:
+        query = ReplayQuery(
+            limit=None,
+            count=200
+        )
+        replays = client.list_replays(query)
+        replay_ids = [replay["id"] for replay in replays]
+        unique_replay_ids = list(set(replay_ids))
+        print(f"Found {len(replays)} replays, {len(unique_replay_ids)} unique")
+        json.dump(replays, open("replays.json", "w"), indent=4)
 
 
 if __name__ == "__main__":

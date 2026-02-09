@@ -1,10 +1,17 @@
 import random
 import time
-import requests
 from typing import Optional
 
-from ballchasing_client.exceptions import BallChasingAuthError, BallChasingClientError, BallChasingRequestError, BallChasingServerError, BallChasingUnexpectedError
+import requests
+
+from ballchasing_client.exceptions import (
+    BallChasingAuthError,
+    BallChasingRequestError,
+    BallChasingServerError,
+    BallChasingUnexpectedError,
+)
 from ballchasing_client.model.ballchasing_model import ReplayQuery
+
 
 class BallChasingClient:
     def __init__(
@@ -38,10 +45,7 @@ class BallChasingClient:
         return min(2**attempt + (0.5 - random.random()), max_backoff)
 
     def _is_retriable_exception(self, exception: Exception):
-        retriable = [
-            requests.exceptions.ConnectionError,
-            requests.Timeout
-        ]
+        retriable = [requests.exceptions.ConnectionError, requests.Timeout]
         return isinstance(exception, tuple(retriable))
 
     def _is_response_successful(self, response: requests.Response):
@@ -71,12 +75,34 @@ class BallChasingClient:
         self,
         method: str,
         path: Optional[str] = None,
+        url: Optional[str] = None,
         headers: Optional[dict] = None,
         params: Optional[dict | list[tuple[str, str]]] = None,
         json: Optional[dict] = None,
         files: Optional[dict] = None,
         retries: int = 3,
     ) -> dict:
+        """base request method with retry logic
+
+        Args:
+            **method** (str): The HTTP method to use for the request (e.g., "GET", "POST").
+            **path** (Optional[str], optional): The path to append to the base URL. Is ignored if url is provided. Defaults to None.
+            **url** (Optional[str], optional): The full URL to use for the request. Defaults to None.
+            **headers** (Optional[dict], optional): Additional headers to include in the request. Defaults to None.
+            **params** (Optional[dict  |  list[tuple[str, str]]], optional): Query parameters for the request. Defaults to None.
+            **json** (Optional[dict], optional): JSON payload for the request. Defaults to None.
+            **files** (Optional[dict], optional): Files to upload with the request. Defaults to None.
+            **retries** (int, optional): Number of times to retry the request in case of failure. Defaults to 3.
+
+        Raises:
+            BallChasingRequestError
+            BallChasingAuthError
+            BallChasingUnexpectedError
+            BallChasingServerError
+
+        Returns:
+            dict: The JSON response from the API.
+        """
         # Make request to api
         uri = self._build_url(path)
         last_exception: Optional[Exception] = None
@@ -87,7 +113,7 @@ class BallChasingClient:
             try:
                 response = self._session.request(
                     method,
-                    uri,
+                    url if url is not None else uri,
                     params=params,
                     json=json,
                     files=files,
@@ -117,15 +143,15 @@ class BallChasingClient:
                     time.sleep(self._exp_backoff_with_jitter(i))
                 continue
             elif self._is_400_error(last_response):
-                raise BallChasingClientError(
+                raise BallChasingRequestError(
                     f"Bad request. Please check the request parameters. Status code: {last_response.status_code}"
                 )
             elif self._is_500_error(last_response):
-                raise BallChasingClientError(
+                raise BallChasingServerError(
                     f"Server error. Status code: {last_response.status_code}, Response: {last_response.text}"
                 )
             elif self._is_unexpected_error(last_response):
-                raise BallChasingClientError(
+                raise BallChasingUnexpectedError(
                     f"Unexpected error. Status code: {last_response.status_code}, Response: {last_response.text}"
                 )
         else:
@@ -145,9 +171,7 @@ class BallChasingClient:
                 raise BallChasingServerError(
                     f"Max retries exceeded. URI: {uri} Status code: {last_response.status_code}, Response: {last_response.text}"
                 )
-            raise BallChasingUnexpectedError(
-                f"URI: {uri} Unknown error."
-            )
+            raise BallChasingUnexpectedError(f"URI: {uri} Unknown error.")
 
     # Public API function defs
     def close(self):
@@ -156,14 +180,22 @@ class BallChasingClient:
     def ping(self):
         return self._request("GET")
 
-    def list_replays(self, query: ReplayQuery, extra_params: dict = None) -> dict:
+    def list_replays(
+        self,
+        query: Optional[ReplayQuery] = None,
+        extra_params: Optional[dict] = None
+    ) -> list:
         # process the query into request parameters
         params = {}
+        if query is None:
+            query = ReplayQuery()
         if query.players:
             for player in query.players:
                 # prefer id over name if available
                 if player.id:
-                    params.setdefault("player-id", []).append(f"{player.platform}:{player.id}")
+                    params.setdefault("player-id", []).append(
+                        f"{player.platform.value if player.platform else 'steam'}:{player.id}"
+                    )
                 elif player.name:
                     params.setdefault("player-name", []).append(player.name)
         if query.playlists:
@@ -201,5 +233,24 @@ class BallChasingClient:
             params["sort-dir"] = query.sort_dir.value
         if extra_params:
             for key, value in extra_params.items():
-                params[key] = value
-        return self._request("GET", "/replays", params=params)
+                if key not in params:
+                    params[key] = value
+        replays = []
+        has_next = False
+        result = self._request("GET", "/replays", params=params)
+        replays.extend(result.get("list", []))
+        has_next = "next" in result
+        if has_next:
+            # keep calling the next url until we reach 'query.limit' or no more pages
+            next_url = result.get("next", "")
+            while next_url:
+                next_result = self._request("GET", url=next_url)
+                replays.extend(next_result.get("list", []))
+                next_url = next_result.get("next")
+                if query.limit and len(replays) >= query.limit:
+                    if len(replays) > query.limit:
+                        replays = replays[: query.limit]
+                    break
+                if next_url is None:
+                    break
+        return replays
