@@ -4,7 +4,12 @@
     "**/.svn": true,
     "**/.hg": true,
     "**/.DS_Store": true,
-    "**/Thumbs.db": true
+    "**/Thumbs.db": true,
+    "**/.trunk/*actions/": true,
+    "**/.trunk/*logs/": true,
+    "**/.trunk/*notifications/": true,
+    "**/.trunk/*out/": true,
+    "**/.trunk/*plugins/": true
   },
   "hide-files.files": [],
   "sqltools.connections": [
@@ -23,5 +28,8 @@
       "username": "root",
       "password": "Chasingballers"
     }
+  ],
+  "cSpell.words": [
+    "ballchasing"
   ]
 }
