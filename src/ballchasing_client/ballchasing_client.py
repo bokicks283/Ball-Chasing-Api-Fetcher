@@ -181,9 +181,7 @@ class BallChasingClient:
         return self._request("GET")
 
     def list_replays(
-        self,
-        query: Optional[ReplayQuery] = None,
-        extra_params: Optional[dict] = None
+        self, query: Optional[ReplayQuery] = None, extra_params: Optional[dict] = None
     ) -> list:
         # process the query into request parameters
         params = {}
@@ -193,8 +191,13 @@ class BallChasingClient:
             for player in query.players:
                 # prefer id over name if available
                 if player.id:
+                    if player.platform is None:
+                        # Just to make the linter happy.
+                        raise ValueError(
+                            "Player platform must be provided if player id is provided. This should never happen."
+                        )
                     params.setdefault("player-id", []).append(
-                        f"{player.platform.value if player.platform else 'steam'}:{player.id}"
+                        f"{player.platform.value}:{player.id}"
                     )
                 elif player.name:
                     params.setdefault("player-name", []).append(player.name)
@@ -244,13 +247,16 @@ class BallChasingClient:
             # keep calling the next url until we reach 'query.limit' or no more pages
             next_url = result.get("next", "")
             while next_url:
-                next_result = self._request("GET", url=next_url)
-                replays.extend(next_result.get("list", []))
-                next_url = next_result.get("next")
                 if query.limit and len(replays) >= query.limit:
                     if len(replays) > query.limit:
                         replays = replays[: query.limit]
                     break
+                next_result = self._request("GET", url=next_url)
+                replays.extend(next_result.get("list", []))
+                next_url = next_result.get("next")
                 if next_url is None:
                     break
+        if query.limit:
+            if len(replays) > query.limit:
+                replays = replays[: query.limit]
         return replays

@@ -15,7 +15,7 @@ def main():
 
     with BallChasingClient(token) as client:
         query = ReplayQuery(
-            limit=None,
+            limit=100000,
             count=200
         )
         replays = client.list_replays(query)

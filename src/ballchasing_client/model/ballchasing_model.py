@@ -140,6 +140,19 @@ class SortDir(str, enum.Enum):
 class ReplayQuery:
     """Query class for list_replays endpoint.
     """
+    def __post_init__(self) -> None:
+        if self.count is not None:
+            if not isinstance(self.count, int):
+                raise TypeError("count must be an int or None")
+            if not 1 <= self.count <= 200:
+                raise ValueError("count must be between 1 and 200")
+
+        if self.limit is not None:
+            if not isinstance(self.limit, int):
+                raise TypeError("limit must be an int or None")
+            if self.limit < 1:
+                raise ValueError("limit must be >= 1")
+
     players: Optional[list[Player]] = None
     """A list of players to filter by."""
     playlists: Optional[list[Playlist]] = None
