@@ -181,12 +181,13 @@ class BallChasingClient:
         return self._request("GET")
 
     def list_replays(
-        self, query: Optional[ReplayQuery] = None, extra_params: Optional[dict] = None
+        self,
+        input_query: Optional[ReplayQuery] = None,
+        extra_params: Optional[dict] = None
     ) -> list:
         # process the query into request parameters
         params = {}
-        if query is None:
-            query = ReplayQuery()
+        query = input_query or ReplayQuery()
         if query.players:
             for player in query.players:
                 # prefer id over name if available
